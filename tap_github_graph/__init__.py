@@ -249,10 +249,10 @@ def main():
     args = utils.parse_args(REQUIRED_CONFIG_KEYS)
 
     if not args.catalog:
-        catalog = do_discover(args.config)
+        args.catalog = do_discover(args.config)
 
     if args.discover:
-        print(json.dumps(catalog, indent=2))
+        print(json.dumps(args.catalog, indent=2))
     else:
         CONFIG.update(args.config)
 
