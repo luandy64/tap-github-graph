@@ -25,7 +25,6 @@ def make_graphql(query):
 def format_query(repo, owner, stream_name, catalog_entry, cursor=None):
     """
     GraphQL queries have the format:
-
         {
           repository(name:"repo" owner:"owner")
           {
@@ -46,47 +45,35 @@ def format_query(repo, owner, stream_name, catalog_entry, cursor=None):
           }
         }
     """
+    base_query = (
+        '{'
+        '  repository(name:"%s" owner:"%s")'
+        '  {'
+        '    %s' # replace with stream_line
+        '    {'
+        '      pageInfo {'
+        '        hasNextPage'
+        '      }'
+        '      edges {'
+        '        cursor'
+        '        node {'
+        '         %s'
+        '        }'
+        '      }'
+        '    }'
+        '  }'
+        '}'
+    )
 
+    add_cursor = ''
     if cursor:
-        query = (
-            '{'
-            '  repository(name:"%s" owner:"%s")'
-            '  {'
-            '    %s(first:1 after: "%s")'
-            '    {'
-            '      pageInfo {'
-            '        hasNextPage'
-            '      }'
-            '      edges {'
-            '        cursor'
-            '        node {'
-            '         %s'
-            '        }'
-            '      }'
-            '    }'
-            '  }'
-            '}') % (repo, owner, stream_name, cursor, catalog_entry)
-    else:
-        query = (
-            '{'
-            '  repository(name:"%s" owner:"%s")'
-            '  {'
-            '    %s(first:1)'
-            '    {'
-            '      pageInfo {'
-            '        hasNextPage'
-            '      }'
-            '      edges {'
-            '        cursor'
-            '        node {'
-            '         %s'
-            '        }'
-            '      }'
-            '    }'
-            '  }'
-            '}') % (repo, owner, stream_name, catalog_entry)
+        # if cursor is passed in, then add_cursor gets a value that it contributes to stream_line
+        # Otherwise we interpolate in nothing
+        add_cursor = 'after: "%s"' % cursor
 
-    return query
+    stream_line = '%s(first:1 %s)' % (stream_name, add_cursor)
+
+    return base_query % (repo, owner, stream_line, catalog_entry)
 
 
 def get_all_issues(catalog_entry, state):
@@ -113,7 +100,7 @@ def get_all_issues(catalog_entry, state):
 
     # TODO: Write a function to take a catalog_entry and parse it to be like this
     catalog_entry = " ".join(['url',
-                              'labels {totalCount}',
+                              'labels {totalCount}', # This part is the tricky bit
                               'repository {url}',
                               'number',
                               'closedAt',
