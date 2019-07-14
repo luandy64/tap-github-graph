@@ -34,6 +34,7 @@ def parse_catalog_entry(catalog_entry):
     #                       'locked'])
     pass
 
+
 def make_graphql(query):
     headers = {"Authorization" : "Bearer " + CONFIG['access_token']}
     resp = requests.post('https://api.github.com/graphql',
@@ -180,6 +181,7 @@ def main():
             catalog=args.catalog,
             state=args.state
         )
+
 
 if __name__ == '__main__':
     main()
