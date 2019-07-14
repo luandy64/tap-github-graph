@@ -15,6 +15,24 @@ REQUIRED_CONFIG_KEYS = [
     'owner'
 ]
 
+def parse_catalog_entry(catalog_entry):
+    # TODO: Write a function to take a catalog_entry and parse it to be the
+    # selected fields separated by a space. There is a tricky bit where the
+    # field is an object and we have to select a nested field. It's not tricky
+    # if we don't expose the nested field at all and just document "If you
+    # select W, then you get {X, Y, and Z}"
+
+    # Should be equal to this in the end
+    # catalog_entry = " ".join(['url',
+    #                       'labels {totalCount}',
+    #                       'repository {url}',
+    #                       'number',
+    #                       'closedAt',
+    #                       'title',
+    #                       'updatedAt',
+    #                       'authorAssociation',
+    #                       'locked'])
+    pass
 
 def make_graphql(query):
     headers = {"Authorization" : "Bearer " + CONFIG['access_token']}
