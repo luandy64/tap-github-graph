@@ -22,7 +22,7 @@ def make_graphql(query):
     return resp.json()
 
 
-def format_query(repo, owner, stream_name, catalog_entry):
+def format_query(repo, owner, stream_name, catalog_entry, cursor=None):
     """
     GraphQL queries have the format:
 
@@ -47,25 +47,46 @@ def format_query(repo, owner, stream_name, catalog_entry):
         }
     """
 
-    query = """
-{
-  repository(name:"%s" owner:"%s")
-  {
-    %s(first:1)
+    if cursor:
+        query = """
     {
-      pageInfo {
-        hasNextPage
-      }
-      edges {
-        cursor
-        node {
-         %s
+      repository(name:"%s" owner:"%s")
+      {
+        %s(first:1 after: "%s")
+        {
+          pageInfo {
+            hasNextPage
+          }
+          edges {
+            cursor
+            node {
+             %s
+            }
+          }
         }
       }
     }
-  }
-}
-""" % (repo, owner, stream_name, catalog_entry)
+    """ % (repo, owner, stream_name, cursor, catalog_entry)
+    else:
+        query = """
+    {
+      repository(name:"%s" owner:"%s")
+      {
+        %s(first:1)
+        {
+          pageInfo {
+            hasNextPage
+          }
+          edges {
+            cursor
+            node {
+             %s
+            }
+          }
+        }
+      }
+    }
+    """ % (repo, owner, stream_name, catalog_entry)        
 
     return query
 
@@ -182,6 +203,8 @@ def get_all_issues(catalog_entry, state):
 }
 """
 
+        query = format_query(repo, owner, stream_name, catalog_entry, pagination_cursor)
+        
         #
         # make the new request
         #
