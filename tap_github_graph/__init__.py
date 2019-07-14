@@ -22,43 +22,115 @@ def make_graphql(query):
     return resp.json()
 
 
-def get_all_issues(catalog_entry, state):
+def format_query(repo, owner, stream_name, catalog_entry):
+    """
+    GraphQL queries have the format:
+
+        {
+          repository(name:"repo" owner:"owner")
+          {
+            stream_name(first:1)
+            {
+              pageInfo {
+                hasNextPage
+              }
+              edges {
+                cursor
+                node {
+                  field1
+                  field2
+                  fieldn
+                }
+              }
+            }
+          }
+        }
+    """
 
     query = """
 {
-    repository(name:"tap-github" owner:"singer-io") {
-    issues(first:1) {
+  repository(name:"%s" owner:"%s")
+  {
+    %s(first:1)
+    {
       pageInfo {
         hasNextPage
       }
       edges {
         cursor
         node {
-          url
-          labels {
-            totalCount
-          }
-          repository {
-            url
-          }
-          number
-          closedAt
-          title
-          updatedAt
-          authorAssociation
-          locked
+         %s
         }
       }
     }
-  } 
+  }
 }
-"""
+""" % (repo, owner, stream_name, catalog_entry)
+
+    return query
+
+
+def get_all_issues(catalog_entry, state):
+
+    repo = "tap-github"
+    owner = "singer-io"
+    stream_name = "issues"
+
+    catalog_entry = (
+        'url '
+        'labels {'
+        '  totalCount'
+        '} '
+        'repository {'
+        '  url'
+        '} '
+        'number '
+        'closedAt '
+        'title '
+        'updatedAt '
+        'authorAssociation '
+        'locked '
+        )
+
+    # TODO: Write a function to take a catalog_entry and parse it to be like this
+    catalog_entry = " ".join(['url',
+                              'labels {totalCount}',
+                              'repository {url}',
+                              'number',
+                              'closedAt',
+                              'title',
+                              'updatedAt',
+                              'authorAssociation',
+                              'locked'])
+
+    query = (
+        '{' +
+        '    repository(name:"{}" owner:"{}")'.format(repo, owner) +
+        '  {' +
+        '    {}(first:1)'.format(stream_name) +
+        '    {'
+        '      pageInfo {'
+        '        hasNextPage'
+        '      }'
+        '      edges {'
+        '        cursor'
+        '        node {' +
+        catalog_entry +
+        '        }'
+        '      }'
+        '    }'
+        '  } '
+        '}')
+
+    # Best way to do this?
+    query = format_query(repo, owner, stream_name, catalog_entry)
+
     response = make_graphql(query)
 
     issues_obj = response['data']['repository']['issues']
-    
+
     has_next_page = issues_obj['pageInfo']['hasNextPage']
-    
+
     while has_next_page:
         #
         # process the response
@@ -70,7 +142,7 @@ def get_all_issues(catalog_entry, state):
 
         record = current_object['node']
         pagination_cursor = current_object['cursor']
-        
+
         # Write record
         print(json.dumps(record))
 
@@ -79,7 +151,7 @@ def get_all_issues(catalog_entry, state):
 
         # {{ because that's how to you don't confuse python
         add_cursor = '    issues(first:1 after: "{}") {{'.format(pagination_cursor)
-        
+
         query ="""
 {
     repository(name:"tap-github" owner:"singer-io") {
@@ -106,7 +178,7 @@ def get_all_issues(catalog_entry, state):
         }
       }
     }
-  } 
+  }
 }
 """
 
@@ -122,7 +194,7 @@ def get_all_issues(catalog_entry, state):
     current_object = issues_obj['edges'][0]
     record = current_object['node']
     pagination_cursor = current_object['cursor']
-    
+
     # Write record
     print(json.dumps(record))
 
@@ -151,9 +223,9 @@ def get_all_collaborators(catalog_entry, state):
     response = make_graphql(query)
 
     collaborators_obj = response['data']['repository']['collaborators']
-    
+
     has_next_page = collaborators_obj['pageInfo']['hasNextPage']
-    
+
     while has_next_page:
         #
         # process the response
@@ -165,7 +237,7 @@ def get_all_collaborators(catalog_entry, state):
 
         record = current_object['node']
         pagination_cursor = current_object['cursor']
-        
+
         # Write record
         print(json.dumps(record))
 
@@ -174,7 +246,7 @@ def get_all_collaborators(catalog_entry, state):
 
         # {{ because that's how to you don't confuse python
         add_cursor = '    collaborators(first:1 after: "{}") {{'.format(pagination_cursor)
-        
+
         query = """
 {
   repository(name: "tap-github" owner: "singer-io") {
@@ -190,11 +262,11 @@ def get_all_collaborators(catalog_entry, state):
           id
         }
       }
-    }    
+    }
   }
 }
-"""        
-        
+"""
+
         #
         # make the new request
         #
@@ -207,11 +279,11 @@ def get_all_collaborators(catalog_entry, state):
     current_object = collaborators_obj['edges'][0]
     record = current_object['node']
     pagination_cursor = current_object['cursor']
-    
+
     # Write record
     print(json.dumps(record))
-    
-    
+
+
 
 def get_all_assignable_users(catalog_entry, state):
 
@@ -230,7 +302,7 @@ def get_all_assignable_users(catalog_entry, state):
           id
         }
       }
-    }    
+    }
   }
 }
 """
@@ -238,9 +310,9 @@ def get_all_assignable_users(catalog_entry, state):
     response = make_graphql(query)
 
     assignable_users_obj = response['data']['repository']['assignableUsers']
-    
+
     has_next_page = assignable_users_obj['pageInfo']['hasNextPage']
-    
+
     while has_next_page:
         #
         # process the response
@@ -252,7 +324,7 @@ def get_all_assignable_users(catalog_entry, state):
 
         record = current_object['node']
         pagination_cursor = current_object['cursor']
-        
+
         # Write record
         print(json.dumps(record))
 
@@ -261,7 +333,7 @@ def get_all_assignable_users(catalog_entry, state):
 
         # {{ because that's how to you don't confuse python
         add_cursor = '    assignableUsers(first:1 after: "{}") {{'.format(pagination_cursor)
-        
+
         query = """
 {
   repository(name: "tap-github" owner: "singer-io") {
@@ -277,11 +349,11 @@ def get_all_assignable_users(catalog_entry, state):
           id
         }
       }
-    }    
+    }
   }
 }
-"""        
-        
+"""
+
         #
         # make the new request
         #
@@ -294,10 +366,10 @@ def get_all_assignable_users(catalog_entry, state):
     current_object = assignable_users_obj['edges'][0]
     record = current_object['node']
     pagination_cursor = current_object['cursor']
-    
+
     # Write record
     print(json.dumps(record))
-    
+
 
 def do_discover(config):
     LOGGER.info('Running discovery')
@@ -323,8 +395,8 @@ def do_sync(catalog, state):
         LOGGER.info('Getting all: %s', stream)
         sync_stream[stream]({}, state)
         LOGGER.info('FINISHED: %s', stream)
-        
-    
+
+
 @utils.handle_top_exception(LOGGER)
 def main():
     args = utils.parse_args(REQUIRED_CONFIG_KEYS)
