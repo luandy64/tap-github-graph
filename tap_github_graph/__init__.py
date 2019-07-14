@@ -36,7 +36,9 @@ def parse_catalog_entry(catalog_entry):
 
 def make_graphql(query):
     headers = {"Authorization" : "Bearer " + CONFIG['access_token']}
-    resp = requests.post('https://api.github.com/graphql', json={'query':query}, headers=headers)
+    resp = requests.post('https://api.github.com/graphql',
+                         json={'query':query},
+                         headers=headers)
 
     resp.raise_for_status()
     return resp.json()
@@ -93,132 +95,10 @@ def format_query(stream_name, catalog_entry, cursor=None):
 
     stream_line = '%s(first:1 %s)' % (stream_name, add_cursor)
 
-    return base_query % (CONFIG['repository'], CONFIG['owner'], stream_line, catalog_entry)
-
-
-def get_all_issues(stream_name, catalog_entry, state):
-    catalog_entry = " ".join(['url',
-                              'labels {totalCount}',
-                              'repository {url}',
-                              'number',
-                              'closedAt',
-                              'title',
-                              'updatedAt',
-                              'authorAssociation',
-                              'locked'])
-
-    query = format_query(repo, owner, stream_name, catalog_entry)
-    response = make_graphql(query)
-
-    issues_obj = response['data']['repository']['issues']
-    has_next_page = issues_obj['pageInfo']['hasNextPage']
-
-    # Grab the object off the response. The 0 index at the end is because we
-    # only ever ask for one object at a time
-    current_object = issues_obj['edges'][0]
-
-    while has_next_page:
-        record = current_object['node']
-        pagination_cursor = current_object['cursor']
-
-        # TODO: Change this to singer messages
-        print(json.dumps(record))
-
-        query = format_query(stream_name, catalog_entry, pagination_cursor)
-        response = make_graphql(query)
-
-        issues_obj = response['data']['repository']['issues']
-        has_next_page = issues_obj['pageInfo']['hasNextPage']
-        current_object = issues_obj['edges'][0]
-
-    # if
-    #   1. we only get one object back
-    #   2. we are at the end of pagination, because the object has a
-    #      `hasNextPage` == false,
-    # we have to do this round of processing
-    record = current_object['node']
-    pagination_cursor = current_object['cursor']
-
-    # TODO: Change this to singer messages
-    print(json.dumps(record))
-
-
-def get_all_collaborators(stream_name, catalog_entry, state):
-    catalog_entry = " ".join(['login', 'id', 'url'])
-
-    query = format_query(stream_name, catalog_entry)
-    response = make_graphql(query)
-
-    collaborators_obj = response['data']['repository']['collaborators']
-    has_next_page = collaborators_obj['pageInfo']['hasNextPage']
-
-    # Grab the object off the response. The 0 index at the end is because we
-    # only ever ask for one object at a time
-    current_object = collaborators_obj['edges'][0]
-
-    while has_next_page:
-        record = current_object['node']
-        pagination_cursor = current_object['cursor']
-
-        # TODO: Change this to singer messages
-        print(json.dumps(record))
-
-        query = format_query(stream_name, catalog_entry, pagination_cursor)
-        response = make_graphql(query)
-
-        collaborators_obj = response['data']['repository']['collaborators']
-        has_next_page = collaborators_obj['pageInfo']['hasNextPage']
-        current_object = collaborators_obj['edges'][0]
-
-    # if
-    #   1. we only get one object back
-    #   2. we are at the end of pagination, because the object has a
-    #      `hasNextPage` == false,
-    # we have to do this round of processing
-    record = current_object['node']
-    pagination_cursor = current_object['cursor']
-
-    # TODO: Change this to singer messages
-    print(json.dumps(record))
-
-
-def get_all_assignable_users(stream_name, catalog_entry, state):
-    catalog_entry = " ".join(['name', 'login', 'id'])
-
-    query = format_query(stream_name, catalog_entry)
-    response = make_graphql(query)
-
-    assignable_users_obj = response['data']['repository']['assignableUsers']
-    has_next_page = assignable_users_obj['pageInfo']['hasNextPage']
-
-    # Grab the object off the response. The 0 index at the end is because we
-    # only ever ask for one object at a time
-    current_object = assignable_users_obj['edges'][0]
-
-    while has_next_page:
-        record = current_object['node']
-        pagination_cursor = current_object['cursor']
-
-        # TODO: Change this to singer messages
-        print(json.dumps(record))
-
-        query = format_query(stream_name, catalog_entry, pagination_cursor)
-        response = make_graphql(query)
-
-        assignable_users_obj = response['data']['repository']['assignableUsers']
-        has_next_page = assignable_users_obj['pageInfo']['hasNextPage']
-        current_object = assignable_users_obj['edges'][0]
-
-    # if
-    #   1. we only get one object back
-    #   2. we are at the end of pagination, because the object has a
-    #      `hasNextPage` == false,
-    # we have to do this round of processing
-    record = current_object['node']
-    pagination_cursor = current_object['cursor']
-
-    # TODO: Change this to singer messages
-    print(json.dumps(record))
+    return base_query % (CONFIG['repository'],
+                         CONFIG['owner'],
+                         stream_line,
+                         catalog_entry)
 
 
 def do_discover(config):
@@ -226,11 +106,43 @@ def do_discover(config):
 
     return {"streams": "foo"}
 
-sync_stream = {
-    'assignableUsers' : get_all_assignable_users,
-    'collaborators'   : get_all_collaborators,
-    'issues'          : get_all_issues,
-}
+
+def sync(stream_name, catalog_entry, state):
+    query = format_query(stream_name, catalog_entry)
+    response = make_graphql(query)
+
+    response_obj = response['data']['repository'][stream_name]
+    has_next_page = response_obj['pageInfo']['hasNextPage']
+
+    # Grab the object off the response. The 0 index at the end is because we
+    # only ever ask for one object at a time
+    current_object = response_obj['edges'][0]
+
+    while has_next_page:
+        record = current_object['node']
+        pagination_cursor = current_object['cursor']
+
+        # TODO: Change this to singer messages
+        print(json.dumps(record))
+
+        query = format_query(stream_name, catalog_entry, pagination_cursor)
+        response = make_graphql(query)
+
+        response_obj = response['data']['repository'][stream_name]
+        has_next_page = response_obj['pageInfo']['hasNextPage']
+        current_object = response_obj['edges'][0]
+
+    # if
+    #   1. we only get one object back
+    #   2. we are at the end of pagination, because the object has a
+    #      `hasNextPage` == false,
+    # we have to do this round of processing
+    record = current_object['node']
+    pagination_cursor = current_object['cursor']
+
+    # TODO: Change this to singer messages
+    print(json.dumps(record))
+
 
 def do_sync(catalog, state):
     LOGGER.info('Running sync')
@@ -243,7 +155,8 @@ def do_sync(catalog, state):
 
     for stream in STREAMS:
         LOGGER.info('Getting all: %s', stream)
-        sync_stream[stream](stream, {}, state)
+        catalog_entry = catalog['streams'][stream]
+        sync(stream, catalog_entry, state)
         LOGGER.info('FINISHED: %s', stream)
 
 
@@ -258,6 +171,10 @@ def main():
         print(json.dumps(args.catalog, indent=2))
     else:
         CONFIG.update(args.config)
+
+        # TODO: Actually implement discovery
+        with open('/tmp/tgg_catalog') as bad_catalog:
+            args.catalog = json.load(bad_catalog)
 
         do_sync(
             catalog=args.catalog,
