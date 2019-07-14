@@ -124,11 +124,12 @@ def get_all_issues(stream_name, catalog_entry, state):
         # TODO: Change this to singer messages
         print(json.dumps(record))
 
-        query = format_query(repo, owner, stream_name, catalog_entry, pagination_cursor)
+        query = format_query(stream_name, catalog_entry, pagination_cursor)
         response = make_graphql(query)
 
         issues_obj = response['data']['repository']['issues']
         has_next_page = issues_obj['pageInfo']['hasNextPage']
+        current_object = issues_obj['edges'][0]
 
     # if
     #   1. we only get one object back
@@ -167,6 +168,7 @@ def get_all_collaborators(stream_name, catalog_entry, state):
 
         collaborators_obj = response['data']['repository']['collaborators']
         has_next_page = collaborators_obj['pageInfo']['hasNextPage']
+        current_object = collaborators_obj['edges'][0]
 
     # if
     #   1. we only get one object back
@@ -205,6 +207,7 @@ def get_all_assignable_users(stream_name, catalog_entry, state):
 
         assignable_users_obj = response['data']['repository']['assignableUsers']
         has_next_page = assignable_users_obj['pageInfo']['hasNextPage']
+        current_object = assignable_users_obj['edges'][0]
 
     # if
     #   1. we only get one object back
