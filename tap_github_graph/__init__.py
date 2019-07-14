@@ -48,45 +48,43 @@ def format_query(repo, owner, stream_name, catalog_entry, cursor=None):
     """
 
     if cursor:
-        query = """
-    {
-      repository(name:"%s" owner:"%s")
-      {
-        %s(first:1 after: "%s")
-        {
-          pageInfo {
-            hasNextPage
-          }
-          edges {
-            cursor
-            node {
-             %s
-            }
-          }
-        }
-      }
-    }
-    """ % (repo, owner, stream_name, cursor, catalog_entry)
+        query = (
+            '{'
+            '  repository(name:"%s" owner:"%s")'
+            '  {'
+            '    %s(first:1 after: "%s")'
+            '    {'
+            '      pageInfo {'
+            '        hasNextPage'
+            '      }'
+            '      edges {'
+            '        cursor'
+            '        node {'
+            '         %s'
+            '        }'
+            '      }'
+            '    }'
+            '  }'
+            '}') % (repo, owner, stream_name, cursor, catalog_entry)
     else:
-        query = """
-    {
-      repository(name:"%s" owner:"%s")
-      {
-        %s(first:1)
-        {
-          pageInfo {
-            hasNextPage
-          }
-          edges {
-            cursor
-            node {
-             %s
-            }
-          }
-        }
-      }
-    }
-    """ % (repo, owner, stream_name, catalog_entry)        
+        query = (
+            '{'
+            '  repository(name:"%s" owner:"%s")'
+            '  {'
+            '    %s(first:1)'
+            '    {'
+            '      pageInfo {'
+            '        hasNextPage'
+            '      }'
+            '      edges {'
+            '        cursor'
+            '        node {'
+            '         %s'
+            '        }'
+            '      }'
+            '    }'
+            '  }'
+            '}') % (repo, owner, stream_name, catalog_entry)
 
     return query
 
@@ -204,7 +202,7 @@ def get_all_issues(catalog_entry, state):
 """
 
         query = format_query(repo, owner, stream_name, catalog_entry, pagination_cursor)
-        
+
         #
         # make the new request
         #
