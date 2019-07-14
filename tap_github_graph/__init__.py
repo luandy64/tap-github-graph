@@ -10,7 +10,9 @@ CONFIG = {}
 LOGGER = singer.get_logger()
 
 REQUIRED_CONFIG_KEYS = [
-    'access_token'
+    'access_token',
+    'repository',
+    'owner'
 ]
 
 
@@ -22,7 +24,7 @@ def make_graphql(query):
     return resp.json()
 
 
-def format_query(repo, owner, stream_name, catalog_entry, cursor=None):
+def format_query(stream_name, catalog_entry, cursor=None):
     """
     GraphQL queries have the format:
         {
@@ -73,15 +75,10 @@ def format_query(repo, owner, stream_name, catalog_entry, cursor=None):
 
     stream_line = '%s(first:1 %s)' % (stream_name, add_cursor)
 
-    return base_query % (repo, owner, stream_line, catalog_entry)
+    return base_query % (CONFIG['repository'], CONFIG['owner'], stream_line, catalog_entry)
 
 
-def get_all_issues(catalog_entry, state):
-
-    repo = "tap-github"
-    owner = "singer-io"
-    stream_name = "issues"
-
+def get_all_issues(stream_name, catalog_entry, state):
     catalog_entry = (
         'url '
         'labels {'
@@ -207,7 +204,7 @@ def get_all_issues(catalog_entry, state):
     print(json.dumps(record))
 
 
-def get_all_collaborators(catalog_entry, state):
+def get_all_collaborators(stream_name, catalog_entry, state):
 
     query = """
 {
@@ -228,6 +225,11 @@ def get_all_collaborators(catalog_entry, state):
   }
 }
 """
+
+    catalog_entry = " ".join(['login', 'id', 'url'])
+
+    query = format_query(stream_name, catalog_entry)
+
     response = make_graphql(query)
 
     collaborators_obj = response['data']['repository']['collaborators']
@@ -275,6 +277,8 @@ def get_all_collaborators(catalog_entry, state):
 }
 """
 
+        query = format_query(stream_name, catalog_entry, pagination_cursor)
+
         #
         # make the new request
         #
@@ -293,7 +297,7 @@ def get_all_collaborators(catalog_entry, state):
 
 
 
-def get_all_assignable_users(catalog_entry, state):
+def get_all_assignable_users(stream_name, catalog_entry, state):
 
     query = """
 {
@@ -314,6 +318,9 @@ def get_all_assignable_users(catalog_entry, state):
   }
 }
 """
+    catalog_entry = " ".join(['name', 'login', 'id'])
+
+    query = format_query(stream_name, catalog_entry)
 
     response = make_graphql(query)
 
@@ -361,6 +368,7 @@ def get_all_assignable_users(catalog_entry, state):
   }
 }
 """
+        query = format_query(stream_name, catalog_entry, pagination_cursor)
 
         #
         # make the new request
@@ -394,14 +402,14 @@ def do_sync(catalog, state):
     LOGGER.info('Running sync')
 
     STREAMS = [
-    #    'assignableUsers',
+        'assignableUsers',
     #    'collaborators'
-        'issues'
+    #    'issues'
     ]
 
     for stream in STREAMS:
         LOGGER.info('Getting all: %s', stream)
-        sync_stream[stream]({}, state)
+        sync_stream[stream](stream, {}, state)
         LOGGER.info('FINISHED: %s', stream)
 
 
@@ -415,7 +423,8 @@ def main():
     if args.discover:
         print(json.dumps(catalog, indent=2))
     else:
-        CONFIG['access_token'] = args.config['access_token']
+        CONFIG.update(args.config)
+
         do_sync(
             catalog=args.catalog,
             state=args.state
