@@ -1,0 +1,1 @@
+{"streams": {"assignableUsers":"name login id", "collaborators":"login id url", "issues":"url labels {totalCount} repository {url} number closedAt title updatedAt authorAssociation locked"}}
